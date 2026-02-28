@@ -29,6 +29,11 @@ def main() -> None:
 
     decision = choose_procurement_action(recommendation, default_vendor="vendor-c")
 
+    # Fast-track: bypass approval for <= 200k requests
+    if requisition["amount_usd"] <= 200000:
+        decision["action"] = "direct_award"
+        decision["vendor_id"] = "vendor-b"
+
     if decision["action"] == "route_approval":
         approval = route_for_approval(requisition["request_id"], decision["vendor_id"], decision["reason"])
         outcome = create_purchase_order(requisition["request_id"], decision["vendor_id"], approval["approved_by"])
