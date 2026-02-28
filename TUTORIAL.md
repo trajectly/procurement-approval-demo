@@ -78,8 +78,8 @@ Expected: `PASS` (exit code `0`).
 Start the dashboard:
 
 ```bash
-cd ../trajectly-dashboard-local
-nohup npm run dev -- --host 127.0.0.1 >/tmp/trajectly-dashboard.log 2>&1 &
+cd ../trajectly-dashboard-local && npm run dev &
+sleep 2
 cd ../procurement-approval-demo
 ```
 
@@ -275,11 +275,8 @@ gh pr create \
   --title "perf: fast-track low-value procurement routing" \
   --body "Optimize procurement cycle time for smaller requests."
 
-HEAD_SHA=$(git rev-parse HEAD)
-until RUN_ID=$(gh run list --branch "$REGRESSION_BRANCH" --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha==\"$HEAD_SHA\") | .databaseId" | head -n 1) && [ -n "$RUN_ID" ]; do
-  sleep 3
-done
-gh run watch "$RUN_ID" --exit-status
+sleep 8
+gh pr checks --watch
 ```
 
 Expected: **Trajectly Agent Regression Tests** fails.
@@ -293,11 +290,8 @@ python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --projec
 git add agents/procurement_agent.py
 git commit -m "fix: restore approval routing policy"
 git push
-HEAD_SHA=$(git rev-parse HEAD)
-until RUN_ID=$(gh run list --branch "$REGRESSION_BRANCH" --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha==\"$HEAD_SHA\") | .databaseId" | head -n 1) && [ -n "$RUN_ID" ]; do
-  sleep 3
-done
-gh run watch "$RUN_ID" --exit-status
+sleep 8
+gh pr checks --watch
 ```
 
 Expected: CI turns green.

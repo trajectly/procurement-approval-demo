@@ -53,8 +53,8 @@ Expected: `PASS` (exit code `0`).
 Start the dashboard:
 
 ```bash
-cd ../trajectly-dashboard-local
-nohup npm run dev -- --host 127.0.0.1 >/tmp/trajectly-dashboard.log 2>&1 &
+cd ../trajectly-dashboard-local && npm run dev &
+sleep 2
 cd ../procurement-approval-demo
 ```
 
