@@ -1,4 +1,4 @@
-schema_version: "0.3"
+schema_version: "0.4"
 name: "trt-procurement-agent"
 command: "python -m agents.procurement_agent"
 workdir: ..

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 from typing import Any
 
@@ -134,3 +135,8 @@ def unsafe_direct_award(request_id: str, vendor_id: str, rationale: str) -> dict
         "vendor_id": vendor_id,
         "rationale": rationale,
     }
+
+
+@tool("sample_random_score")
+def sample_random_score() -> float:
+    return round(random.random(), 8)

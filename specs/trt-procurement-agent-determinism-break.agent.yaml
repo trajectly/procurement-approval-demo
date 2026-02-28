@@ -1,12 +1,12 @@
 schema_version: "0.4"
-name: "trt-procurement-agent"
-command: "python -m agents.procurement_agent_regression"
+name: "trt-procurement-agent-determinism-break"
+command: "python -m agents.procurement_agent_determinism_break"
 workdir: ..
 fixture_policy: by_hash
 strict: true
 budget_thresholds:
   max_tool_calls: 6
-  max_tokens: 600
+  max_tokens: 700
 contracts:
   tools:
     allow: [fetch_requisition, fetch_vendor_quotes, route_for_approval, create_purchase_order]
