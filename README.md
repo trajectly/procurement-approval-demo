@@ -83,7 +83,33 @@ At the witness step, violation details should include:
 This mirrors a realistic procurement regression: a fast-track optimization that
 looks operationally beneficial but bypasses mandatory approval controls.
 
-## 5. CLI deep dive: report, repro, shrink
+## 5. Determinism break and fix
+
+### 5.1 Break replay with direct random usage in agent code
+
+```bash
+python -m trajectly record specs/trt-procurement-agent-determinism-break.agent.yaml --project-root .
+python -m trajectly run specs/trt-procurement-agent-determinism-break.agent.yaml --project-root .
+```
+
+Expected: `FAIL` (exit code `1`).
+
+This variant injects `random.random()` directly into the LLM prompt. Replay
+cannot match fixtures across runs because the random value changes.
+
+### 5.2 Fix replay by routing randomness through an explicit tool
+
+```bash
+python -m trajectly record specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
+python -m trajectly run specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
+```
+
+Expected: `PASS` (exit code `0`).
+
+This variant moves random sampling into `@tool("sample_random_score")`, so
+Trajectly records and replays the value deterministically.
+
+## 6. CLI deep dive: report, repro, shrink
 
 ```bash
 python -m trajectly report
@@ -121,7 +147,7 @@ Useful JSON fields include:
 - `primary_violation`
 - `repro_command`
 
-## 6. CI integration
+## 7. CI integration
 
 The included `.github/workflows/trajectly.yml` runs on pushes to `main` and PRs
 targeting `main`. It:
@@ -134,16 +160,28 @@ targeting `main`. It:
 
 See [TUTORIAL.md](TUTORIAL.md) for the full branch/PR fail-and-fix workflow.
 
+For a one-command local sanity check of baseline/regression/determinism paths:
+
+```bash
+bash scripts/verify_demo.sh
+```
+
 ## Repo layout
 
 ```text
 agents/
   procurement_agent.py             # baseline behavior
   procurement_agent_regression.py  # intentionally regressed variant
+  procurement_agent_determinism_break.py
+  procurement_agent_determinism_fix.py
   procurement_tools.py             # tools + LLM wrapper
 specs/
   trt-procurement-agent-baseline.agent.yaml
   trt-procurement-agent-regression.agent.yaml
+  trt-procurement-agent-determinism-break.agent.yaml
+  trt-procurement-agent-determinism-fix.agent.yaml
+scripts/
+  verify_demo.sh
 .github/workflows/trajectly.yml
 TUTORIAL.md
 ```

@@ -68,7 +68,15 @@ python -m trajectly record specs/trt-procurement-agent-baseline.agent.yaml --pro
 ```
 
 This executes `agents/procurement_agent.py`, captures tool/LLM behavior, and
-stores baseline + fixtures under `.trajectly/`.
+stores the baseline bundle in `.trajectly/baselines/trt-procurement-agent/v1/`:
+
+- `trace.jsonl` (baseline trace)
+- `trace.meta.json` (trace metadata)
+- `fixtures.json` (deterministic replay fixtures)
+- `baseline.meta.json` (clock/random seed + spec hash metadata)
+
+Trajectly also writes `.trajectly/current/trt-procurement-agent.json` to mark
+`v1` as the promoted default version for this spec.
 
 ### Verify baseline passes
 
@@ -173,8 +181,9 @@ Minimizes the trace to the shortest reproducing prefix.
 | `.trajectly/reports/latest.json` | Latest run roll-up |
 | `.trajectly/reports/trt-procurement-agent.json` | Full TRT report |
 | `.trajectly/reports/trt-procurement-agent.md` | Human-readable report |
-| `.trajectly/baselines/trt-procurement-agent.jsonl` | Recorded baseline trace |
-| `.trajectly/fixtures/trt-procurement-agent.json` | Fixture replay data |
+| `.trajectly/baselines/trt-procurement-agent/v1/trace.jsonl` | Recorded baseline trace |
+| `.trajectly/baselines/trt-procurement-agent/v1/fixtures.json` | Fixture replay data |
+| `.trajectly/current/trt-procurement-agent.json` | Promoted baseline pointer |
 
 ---
 
@@ -230,18 +239,51 @@ Refresh dashboard and confirm it returns to green.
 
 ---
 
-## Step 8: Intentional behavior changes
+## Step 8: Determinism break and fix
+
+Trajectly also surfaces replay instability caused by hidden nondeterminism.
+
+### 8.1 Direct random usage in agent code (expected FAIL)
+
+```bash
+python -m trajectly record specs/trt-procurement-agent-determinism-break.agent.yaml --project-root .
+python -m trajectly run specs/trt-procurement-agent-determinism-break.agent.yaml --project-root .
+```
+
+Expected: `FAIL` (exit code `1`).
+
+This variant injects `random.random()` directly into the LLM prompt. Replay
+cannot match fixtures because the value changes every run.
+
+### 8.2 Randomness through explicit `@tool` wrapper (expected PASS)
+
+```bash
+python -m trajectly record specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
+python -m trajectly run specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
+```
+
+Expected: `PASS` (exit code `0`).
+
+This variant routes randomness through `@tool("sample_random_score")`, so
+Trajectly records and replays the value deterministically.
+
+---
+
+## Step 9: Intentional behavior changes
 
 If behavior changes are intentional and approved, update baseline explicitly:
 
 ```bash
-python -m trajectly baseline update specs/trt-procurement-agent-baseline.agent.yaml
+python -m trajectly baseline create --name v2 specs/trt-procurement-agent-baseline.agent.yaml --project-root .
+python -m trajectly baseline diff trt-procurement-agent v1 v2 --project-root . --json
+python -m trajectly baseline promote v2 specs/trt-procurement-agent-baseline.agent.yaml --project-root .
 ```
 
-This command re-records the baseline from current code and fixtures.
+This records a new baseline version (`v2`), diffs it against `v1`, and promotes
+`v2` as the default baseline for regular runs.
 
-Use baseline update only for real, approved policy changes. Do not use it to
-"green up" a failing regression without review.
+Treat baseline changes as explicit policy contract updates, not a quick way to
+"green up" failing checks.
 
 Before updating:
 
@@ -254,6 +296,7 @@ Before updating:
 After updating:
 
 ```bash
+python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root . --baseline v2
 python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
 python -m trajectly report
 ```
@@ -266,9 +309,9 @@ In PR review, explicitly note baseline artifacts changed intentionally
 
 ---
 
-## Step 9: CI/PR loop on GitHub
+## Step 10: CI/PR loop on GitHub
 
-### 9.1 Publish your own copy
+### 10.1 Publish your own copy
 
 If you cloned this demo, do not `git init` again. Create a private copy:
 
@@ -278,7 +321,7 @@ gh repo create <your-org>/procurement-approval-demo --private --source=. --remot
 gh repo set-default <your-org>/procurement-approval-demo
 ```
 
-### 9.2 Create a subtle regression PR
+### 10.2 Create a subtle regression PR
 
 ```bash
 REGRESSION_BRANCH="feat/pr-procurement-regression-$(whoami)"
@@ -312,7 +355,7 @@ Expected: **Trajectly Agent Regression Tests** fails.
 If you see `no checks reported`, run `gh pr checks --watch` again. GitHub may
 still be attaching checks to the new PR run.
 
-### 9.3 Fix and verify green
+### 10.3 Fix and verify green
 
 Remove the override, then:
 
@@ -329,7 +372,7 @@ Expected: CI turns green.
 If you see `no checks reported`, run `gh pr checks --watch` again until the
 updated run is shown.
 
-### 9.4 Enforce merge blocking (required for real gating)
+### 10.4 Enforce merge blocking (required for real gating)
 
 To ensure failing checks block merge:
 
