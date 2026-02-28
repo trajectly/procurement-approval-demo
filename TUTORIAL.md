@@ -79,7 +79,6 @@ Start the dashboard:
 
 ```bash
 cd ../trajectly-dashboard-local && npm run dev &
-sleep 2
 cd ../procurement-approval-demo
 ```
 
@@ -243,7 +242,6 @@ Use this only with explicit review sign-off.
 If you cloned this demo, do not `git init` again. Create a private copy:
 
 ```bash
-gh auth status
 git remote rename origin upstream
 gh repo create <your-org>/procurement-approval-demo --private --source=. --remote=origin --push
 gh repo set-default <your-org>/procurement-approval-demo
@@ -275,11 +273,13 @@ gh pr create \
   --title "perf: fast-track low-value procurement routing" \
   --body "Optimize procurement cycle time for smaller requests."
 
-sleep 8
 gh pr checks --watch
 ```
 
 Expected: **Trajectly Agent Regression Tests** fails.
+
+If you see `no checks reported`, run `gh pr checks --watch` again. GitHub may
+still be attaching checks to the new PR run.
 
 ### 9.3 Fix and verify green
 
@@ -290,11 +290,13 @@ python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --projec
 git add agents/procurement_agent.py
 git commit -m "fix: restore approval routing policy"
 git push
-sleep 8
 gh pr checks --watch
 ```
 
 Expected: CI turns green.
+
+If you see `no checks reported`, run `gh pr checks --watch` again until the
+updated run is shown.
 
 ### 9.4 Enforce merge blocking (required for real gating)
 

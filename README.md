@@ -54,7 +54,6 @@ Start the dashboard:
 
 ```bash
 cd ../trajectly-dashboard-local && npm run dev &
-sleep 2
 cd ../procurement-approval-demo
 ```
 
