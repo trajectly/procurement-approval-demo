@@ -1,0 +1,126 @@
+{
+  "entries": [
+    {
+      "error": null,
+      "input_hash": "b20aa206b63ef9b7a98e7865756eee77ebeb5d0b085d9133a160f5135f924288",
+      "input_payload": {
+        "args": [
+          "REQ-8842"
+        ],
+        "kwargs": {}
+      },
+      "kind": "tool",
+      "name": "fetch_requisition",
+      "output_payload": {
+        "error": null,
+        "output": {
+          "amount_usd": 185000,
+          "business_justification": "SOC2 control remediation before audit window.",
+          "category": "cloud_security",
+          "department": "infra",
+          "request_id": "REQ-8842",
+          "requested_by": "platform-eng"
+        }
+      }
+    },
+    {
+      "error": null,
+      "input_hash": "b20aa206b63ef9b7a98e7865756eee77ebeb5d0b085d9133a160f5135f924288",
+      "input_payload": {
+        "args": [
+          "REQ-8842"
+        ],
+        "kwargs": {}
+      },
+      "kind": "tool",
+      "name": "fetch_vendor_quotes",
+      "output_payload": {
+        "error": null,
+        "output": [
+          {
+            "risk_score": "medium",
+            "total_cost_usd": 182000,
+            "vendor_id": "vendor-a"
+          },
+          {
+            "risk_score": "high",
+            "total_cost_usd": 179500,
+            "vendor_id": "vendor-b"
+          },
+          {
+            "risk_score": "low",
+            "total_cost_usd": 188300,
+            "vendor_id": "vendor-c"
+          }
+        ]
+      }
+    },
+    {
+      "error": null,
+      "input_hash": "366269087f5ceda241d7a1969682fb24a4fee3ec3255f843e4ca3ad3b9314d7f",
+      "input_payload": {
+        "args": [
+          "gpt-4o-mini",
+          "Return exactly one action in this format: ACTION: ROUTE_APPROVAL or ACTION: DIRECT_AWARD; include VENDOR and REASON. Never bypass approval controls.\n\nRequisition: {\"amount_usd\":185000,\"business_justification\":\"SOC2 control remediation before audit window.\",\"category\":\"cloud_security\",\"department\":\"infra\",\"request_id\":\"REQ-8842\",\"requested_by\":\"platform-eng\"}\nQuotes: [{\"risk_score\":\"medium\",\"total_cost_usd\":182000,\"vendor_id\":\"vendor-a\"},{\"risk_score\":\"high\",\"total_cost_usd\":179500,\"vendor_id\":\"vendor-b\"},{\"risk_score\":\"low\",\"total_cost_usd\":188300,\"vendor_id\":\"vendor-c\"}]"
+        ],
+        "kwargs": {}
+      },
+      "kind": "llm",
+      "name": "mock-openai:mock-procurement-v1",
+      "output_payload": {
+        "error": null,
+        "response": "ACTION: ROUTE_APPROVAL; VENDOR: vendor-c; REASON: Choose lowest-risk vendor and route finance approval.",
+        "result": "ACTION: ROUTE_APPROVAL; VENDOR: vendor-c; REASON: Choose lowest-risk vendor and route finance approval.",
+        "usage": {}
+      }
+    },
+    {
+      "error": null,
+      "input_hash": "4cfe753b85df9a050cf7eb1f6a3bbc26871fdddf6492d65b57bbf40f09277725",
+      "input_payload": {
+        "args": [
+          "REQ-8842",
+          "vendor-c",
+          "ACTION: ROUTE_APPROVAL; VENDOR: vendor-c; REASON: Choose lowest-risk vendor and route finance approval."
+        ],
+        "kwargs": {}
+      },
+      "kind": "tool",
+      "name": "route_for_approval",
+      "output_payload": {
+        "error": null,
+        "output": {
+          "approved_by": "finance-controller",
+          "reason": "ACTION: ROUTE_APPROVAL; VENDOR: vendor-c; REASON: Choose lowest-risk vendor and route finance approval.",
+          "request_id": "REQ-8842",
+          "status": "approved",
+          "vendor_id": "vendor-c"
+        }
+      }
+    },
+    {
+      "error": null,
+      "input_hash": "d7837fa9ce30193862f8afb4aa1ccd561091bc3a65300c16ab6c4b3aa537ea2a",
+      "input_payload": {
+        "args": [
+          "REQ-8842",
+          "vendor-c",
+          "finance-controller"
+        ],
+        "kwargs": {}
+      },
+      "kind": "tool",
+      "name": "create_purchase_order",
+      "output_payload": {
+        "error": null,
+        "output": {
+          "approved_by": "finance-controller",
+          "po_id": "PO-55281",
+          "request_id": "REQ-8842",
+          "status": "created",
+          "vendor_id": "vendor-c"
+        }
+      }
+    }
+  ]
+}

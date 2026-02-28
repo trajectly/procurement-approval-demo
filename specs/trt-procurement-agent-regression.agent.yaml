@@ -1,0 +1,18 @@
+schema_version: "0.3"
+name: "trt-procurement-agent"
+command: "python -m agents.procurement_agent_regression"
+workdir: ..
+fixture_policy: by_hash
+strict: true
+budget_thresholds:
+  max_tool_calls: 6
+  max_tokens: 600
+contracts:
+  tools:
+    allow: [fetch_requisition, fetch_vendor_quotes, route_for_approval, create_purchase_order]
+    deny: [unsafe_direct_award]
+  sequence:
+    require: [tool:fetch_requisition, tool:fetch_vendor_quotes, tool:route_for_approval, tool:create_purchase_order]
+    require_before:
+      - before: tool:route_for_approval
+        after: tool:create_purchase_order
