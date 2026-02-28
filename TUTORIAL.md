@@ -24,7 +24,14 @@ For each run, Trajectly:
 
 ## Step 0: Environment and dashboard setup
 
-### 0.1 Python environment
+### 0.1 Clone the demo repo
+
+```bash
+git clone https://github.com/trajectly/procurement-approval-demo.git
+cd procurement-approval-demo
+```
+
+### 0.2 Python environment
 
 ```bash
 python3.11 -m venv .venv
@@ -33,7 +40,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 0.2 Local dashboard
+### 0.3 Local dashboard
 
 Set up the dashboard now so you can visualize results throughout the tutorial.
 
@@ -231,7 +238,31 @@ If behavior changes are intentional and approved, update baseline explicitly:
 python -m trajectly baseline update specs/trt-procurement-agent-baseline.agent.yaml
 ```
 
-Use this only with explicit review sign-off.
+This command re-records the baseline from current code and fixtures.
+
+Use baseline update only for real, approved policy changes. Do not use it to
+"green up" a failing regression without review.
+
+Before updating:
+
+1. Confirm this is a deliberate procurement policy change.
+2. Run `python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .`
+   and inspect the failure.
+3. Run `python -m trajectly report` and review witness + violations.
+4. Confirm in dashboard that the new tool path is truly the desired behavior.
+
+After updating:
+
+```bash
+python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
+python -m trajectly report
+```
+
+Expected after intentional update: baseline spec returns `PASS` with the new
+approved behavior.
+
+In PR review, explicitly note baseline artifacts changed intentionally
+(`.trajectly/baselines/*` and related metadata) and link approval context.
 
 ---
 
