@@ -1,277 +1,139 @@
-# Tutorial: End-to-End Trajectly PR Regression Workflow (Procurement)
+# Tutorial: End-to-End Trajectly PR Regression Workflow (Procurement, Declarative Graph)
 
-This tutorial walks through every Trajectly feature using a procurement approval
-agent. By the end you will have:
+This tutorial walks through the full regression lifecycle using the declarative graph SDK (`trajectly.App`) in a procurement approval workflow.
 
-- Recorded a behavioral baseline
-- Viewed it in the local dashboard
-- Introduced a subtle regression and watched Trajectly catch it
-- Used report/repro/shrink to debug and minimize the failure
-- Simulated the exact PR workflow that Trajectly gates in CI
-- Fixed the regression and turned CI green
+You will:
+1. run baseline (PASS)
+2. run intentional regression (FAIL)
+3. triage with report/repro/shrink
+4. run determinism break/fix
+5. simulate a risky PR-style graph change and restore green
 
-## What Trajectly does under the hood
-
-For each run, Trajectly:
-
-1. Captures normalized trace events (`tool_called`, `llm_called`, etc.).
-2. Extracts the tool-call skeleton (ordered list of tool names).
-3. Checks contracts (allow/deny lists, required sequences, budget limits).
-4. Checks behavioral refinement against the recorded baseline.
-5. Returns PASS/FAIL with witness step and deterministic artifacts.
-
----
-
-## Step 0: Environment and dashboard setup
-
-### 0.1 Clone the demo repo
+## Step 0: Setup
 
 ```bash
 git clone https://github.com/trajectly/procurement-approval-demo.git
 cd procurement-approval-demo
-```
 
-### 0.2 Python environment
-
-```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 0.3 Local dashboard
-
-Set up the dashboard now so you can visualize results throughout the tutorial.
+### Optional dashboard setup
 
 ```bash
 cd ..
 git clone https://github.com/trajectly/trajectly-dashboard-local.git
 cd trajectly-dashboard-local
 npm install
+printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)/../procurement-approval-demo" > .env.local
+npm run dev &
 cd ../procurement-approval-demo
 ```
 
-You now have two sibling directories. Configure the dashboard once:
+Dashboard URL: <http://localhost:5173/dashboard>
 
-```bash
-printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)" > ../trajectly-dashboard-local/.env.local
-```
+## Step 1: Understand the graph layout
 
----
+Core graph module:
+- `agents/procurement_graph.py`
 
-## Step 1: Initialize and record baseline
+Spec entrypoints:
+- baseline -> `agents/procurement_agent.py`
+- regression -> `agents/procurement_agent_regression.py`
+- determinism break -> `agents/procurement_agent_determinism_break.py`
+- determinism fix -> `agents/procurement_agent_determinism_fix.py`
+
+## Step 2: Initialize and record baseline
 
 ```bash
 python -m trajectly init
 python -m trajectly record specs/trt-procurement-agent-baseline.agent.yaml --project-root .
-```
-
-This executes `agents/procurement_agent.py`, captures tool/LLM behavior, and
-stores the baseline bundle in `.trajectly/baselines/trt-procurement-agent/v1/`:
-
-- `trace.jsonl` (baseline trace)
-- `trace.meta.json` (trace metadata)
-- `fixtures.json` (deterministic replay fixtures)
-- `baseline.meta.json` (clock/random seed + spec hash metadata)
-
-Trajectly also writes `.trajectly/current/trt-procurement-agent.json` to mark
-`v1` as the promoted default version for this spec.
-
-### Verify baseline passes
-
-```bash
 python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
 ```
 
-Expected: `PASS` (exit code `0`).
+Expected: PASS (`0`).
 
----
-
-## Step 2: View baseline in dashboard
-
-Start the dashboard:
-
-```bash
-cd ../trajectly-dashboard-local && npm run dev &
-cd ../procurement-approval-demo
-```
-
-Open **http://localhost:5173/dashboard**.
-
-What you should see:
-
-- **Procurement Approval Agent** -- status **PASS**
-- Tool flow includes `fetch_requisition` -> `fetch_vendor_quotes` -> `route_for_approval` -> `create_purchase_order`
-- Trace timeline with ordered events and timing
-- Contract summary passing
-
----
-
-## Step 3: Run the intentionally regressed variant
-
-The repo includes `agents/procurement_agent_regression.py`, which adds a
-fast-track override that bypasses approval routing:
-
-```python
-if requisition["amount_usd"] <= 200000:
-    decision["action"] = "direct_award"
-    decision["vendor_id"] = "vendor-b"
-```
-
-Run it:
+## Step 3: Run intentional regression variant
 
 ```bash
 python -m trajectly run specs/trt-procurement-agent-regression.agent.yaml --project-root .
 ```
 
-Expected: `FAIL` (exit code `1`).
+Expected: FAIL (`1`).
 
-At the witness step, violations include:
+Expected failure includes denied/forbidden direct-award path and missing required approval path.
 
-- `CONTRACT_TOOL_DENIED` (`unsafe_direct_award`)
-- `CONTRACT_TOOL_NOT_ALLOWED` (`unsafe_direct_award`)
-- `REFINEMENT_BASELINE_CALL_MISSING` (`route_for_approval`)
-- `REFINEMENT_EXTRA_TOOL_CALL` / `REFINEMENT_NEW_TOOL_NAME_FORBIDDEN`
-
----
-
-## Step 4: View the regression in dashboard
-
-Refresh **http://localhost:5173/dashboard**.
-
-What changed:
-
-- **Status: FAIL** with witness index
-- Agent flow now shows the missing approval path and denied direct-award call
-- Violation section lists witness-step refinement + contract failures
-
----
-
-## Step 5: CLI deep dive -- report, repro, shrink
-
-### report
+## Step 4: Triage from CLI
 
 ```bash
 python -m trajectly report
-```
-
-Shows failing spec, witness index, violations, and repro command.
-
-### repro
-
-```bash
 python -m trajectly repro
-```
-
-Replays the exact failing trace deterministically from fixtures.
-
-### shrink
-
-```bash
 python -m trajectly shrink
 ```
 
-Minimizes the trace to the shortest reproducing prefix.
+Expected exit behavior:
+- `report` -> `0`
+- `repro` -> `1`
+- `shrink` -> `0`
 
-### Generated files reference
+## Step 5: Determinism break and fix
 
-| File | Contents |
-|------|----------|
-| `.trajectly/reports/latest.json` | Latest run roll-up |
-| `.trajectly/reports/trt-procurement-agent.json` | Full TRT report |
-| `.trajectly/reports/trt-procurement-agent.md` | Human-readable report |
-| `.trajectly/baselines/trt-procurement-agent/v1/trace.jsonl` | Recorded baseline trace |
-| `.trajectly/baselines/trt-procurement-agent/v1/fixtures.json` | Fixture replay data |
-| `.trajectly/current/trt-procurement-agent.json` | Promoted baseline pointer |
-
----
-
-## Step 6: Simulate regression on baseline code (the PR scenario)
-
-In CI, the baseline spec (`specs/trt-procurement-agent-baseline.agent.yaml`) is
-always executed. To simulate a risky PR, edit the baseline agent code.
-
-Open `agents/procurement_agent.py`. Find:
-
-```python
-    decision = choose_procurement_action(recommendation, default_vendor="vendor-c")
-
-    if decision["action"] == "route_approval":
-```
-
-Replace with:
-
-```python
-    decision = choose_procurement_action(recommendation, default_vendor="vendor-c")
-
-    # Fast-track: bypass approval for <= 200k requests
-    if requisition["amount_usd"] <= 200000:
-        decision["action"] = "direct_award"
-        decision["vendor_id"] = "vendor-b"
-
-    if decision["action"] == "route_approval":
-```
-
-Now run baseline spec again:
-
-```bash
-python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
-```
-
-Expected: `FAIL` (exit code `1`).
-
-Refresh dashboard and confirm FAIL is visible.
-
----
-
-## Step 7: Fix via Trajectly loop
-
-Remove the 3-line fast-track override from `agents/procurement_agent.py`, then:
-
-```bash
-python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
-```
-
-Expected: `PASS` (exit code `0`).
-
-Refresh dashboard and confirm it returns to green.
-
----
-
-## Step 8: Determinism break and fix
-
-Trajectly also surfaces replay instability caused by hidden nondeterminism.
-
-### 8.1 Direct random usage in agent code (expected FAIL)
+### 5.1 Determinism break (expected fail)
 
 ```bash
 python -m trajectly record specs/trt-procurement-agent-determinism-break.agent.yaml --project-root .
 python -m trajectly run specs/trt-procurement-agent-determinism-break.agent.yaml --project-root .
 ```
 
-Expected: `FAIL` (exit code `1`).
+Expected: FAIL (`1`).
 
-This variant injects `random.random()` directly into the LLM prompt. Replay
-cannot match fixtures because the value changes every run.
-
-### 8.2 Randomness through explicit `@tool` wrapper (expected PASS)
+### 5.2 Determinism fix (expected pass)
 
 ```bash
 python -m trajectly record specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
 python -m trajectly run specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
 ```
 
-Expected: `PASS` (exit code `0`).
+Expected: PASS (`0`).
 
-This variant routes randomness through `@tool("sample_random_score")`, so
-Trajectly records and replays the value deterministically.
+## Step 6: Simulate risky PR change in graph baseline logic
 
----
+Edit `agents/procurement_graph.py`.
 
-## Step 9: Intentional behavior changes
+Find `choose_procurement_action_node(...)` and temporarily add:
 
-If behavior changes are intentional and approved, update baseline explicitly:
+```python
+if int(requisition["amount_usd"]) <= 200000:
+    decision["action"] = "direct_award"
+    decision["vendor_id"] = "vendor-b"
+```
+
+Now run baseline spec:
+
+```bash
+python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
+```
+
+Expected: FAIL (`1`).
+
+This mirrors a subtle policy bypass that may look like a throughput optimization in review.
+
+## Step 7: Revert and confirm green
+
+Remove the override added in Step 6, then run:
+
+```bash
+python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
+```
+
+Expected: PASS (`0`).
+
+## Step 8: Baseline lifecycle commands (intentional behavior changes)
+
+Use only for approved intentional behavior changes:
 
 ```bash
 python -m trajectly baseline create --name v2 specs/trt-procurement-agent-baseline.agent.yaml --project-root .
@@ -279,120 +141,28 @@ python -m trajectly baseline diff trt-procurement-agent v1 v2 --project-root . -
 python -m trajectly baseline promote v2 specs/trt-procurement-agent-baseline.agent.yaml --project-root .
 ```
 
-This records a new baseline version (`v2`), diffs it against `v1`, and promotes
-`v2` as the default baseline for regular runs.
+## Step 9: CI/PR loop
 
-Treat baseline changes as explicit policy contract updates, not a quick way to
-"green up" failing checks.
+Workflow file: `.github/workflows/trajectly.yml`
 
-Before updating:
+The workflow verifies scenarios, runs baseline replay gate, posts PR report comment, uploads artifacts, and fails on regression.
 
-1. Confirm this is a deliberate procurement policy change.
-2. Run `python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .`
-   and inspect the failure.
-3. Run `python -m trajectly report` and review witness + violations.
-4. Confirm in dashboard that the new tool path is truly the desired behavior.
-
-After updating:
+To replicate CI locally:
 
 ```bash
-python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root . --baseline v2
-python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
-python -m trajectly report
+bash scripts/verify_demo.sh
 ```
 
-Expected after intentional update: baseline spec returns `PASS` with the new
-approved behavior.
+## Step 10: Optional live OpenAI recording
 
-In PR review, explicitly note baseline artifacts changed intentionally
-(`.trajectly/baselines/*` and related metadata) and link approval context.
+Default demo mode is deterministic mock LLM.
 
----
-
-## Step 10: CI/PR loop on GitHub
-
-### 10.1 Publish your own copy
-
-If you cloned this demo, do not `git init` again. Create a private copy:
+For live OpenAI recording:
 
 ```bash
-git remote rename origin upstream
-gh repo create <your-org>/procurement-approval-demo --private --source=. --remote=origin --push
-gh repo set-default <your-org>/procurement-approval-demo
+export OPENAI_API_KEY="sk-..."
+export TRAJECTLY_DEMO_USE_OPENAI=1
+python -m trajectly record specs/trt-procurement-agent-baseline.agent.yaml --project-root .
 ```
 
-### 10.2 Create a subtle regression PR
-
-```bash
-REGRESSION_BRANCH="feat/pr-procurement-regression-$(whoami)"
-git checkout -b "$REGRESSION_BRANCH"
-```
-
-Inject the fast-track override from Step 6 into `agents/procurement_agent.py`.
-
-Before pushing, confirm local failure:
-
-```bash
-python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
-```
-
-Commit and push:
-
-```bash
-git add agents/procurement_agent.py
-git commit -m "perf: fast-track low-value procurement routing"
-git push -u origin "$REGRESSION_BRANCH"
-
-gh pr create \
-  --title "perf: fast-track low-value procurement routing" \
-  --body "Optimize procurement cycle time for smaller requests."
-
-gh pr checks --watch
-```
-
-Expected: **Trajectly Agent Regression Tests** fails.
-
-If you see `no checks reported`, run `gh pr checks --watch` again. GitHub may
-still be attaching checks to the new PR run.
-
-### 10.3 Fix and verify green
-
-Remove the override, then:
-
-```bash
-python -m trajectly run specs/trt-procurement-agent-baseline.agent.yaml --project-root .
-git add agents/procurement_agent.py
-git commit -m "fix: restore approval routing policy"
-git push
-gh pr checks --watch
-```
-
-Expected: CI turns green.
-
-If you see `no checks reported`, run `gh pr checks --watch` again until the
-updated run is shown.
-
-### 10.4 Enforce merge blocking (required for real gating)
-
-To ensure failing checks block merge:
-
-1. Go to `Settings` -> `Branches`.
-2. Add/edit branch protection rule for `main`.
-3. Enable **Require status checks to pass before merging**.
-4. Select **Trajectly Agent Regression Tests** as a required check.
-5. Save changes.
-
-If required checks are not available in your private repo plan, validate check
-status manually before merge.
-
----
-
-## CI workflow reference
-
-`.github/workflows/trajectly.yml`:
-
-1. Installs dependencies
-2. Runs `python -m trajectly init` + baseline spec replay
-3. Builds PR comment markdown from `python -m trajectly report --pr-comment`
-4. Uploads `.trajectly/**` artifacts
-5. Fails on regression verdict
+Replay remains fixture-based and deterministic.

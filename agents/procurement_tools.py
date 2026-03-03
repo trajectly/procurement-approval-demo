@@ -6,14 +6,11 @@ import random
 import re
 from typing import Any
 
-from trajectly.sdk import invoke_llm_call, tool
-
-
 def stable_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
-def _extract_openai_content(raw: Any) -> str:
+def extract_openai_content(raw: Any) -> str:
     if isinstance(raw, str):
         match = re.search(r'content="((?:\\"|[^"])*)"', raw)
         if match:
@@ -23,7 +20,7 @@ def _extract_openai_content(raw: Any) -> str:
     if isinstance(raw, dict):
         response = raw.get("response")
         if isinstance(response, str):
-            return _extract_openai_content(response)
+            return extract_openai_content(response)
         choices = raw.get("choices")
         if isinstance(choices, list) and choices:
             first = choices[0]
@@ -44,31 +41,34 @@ def _extract_openai_content(raw: Any) -> str:
     return str(raw)
 
 
-def _mock_policy_response(_: str, request_prompt: str) -> str:
+def mock_policy_response(_: str, request_prompt: str) -> str:
     prompt = request_prompt.lower()
     if "optimize for fastest cycle time" in prompt:
         return "ACTION: DIRECT_AWARD; VENDOR: vendor-b; REASON: Fast-track lowest cost vendor."
     return "ACTION: ROUTE_APPROVAL; VENDOR: vendor-c; REASON: Choose lowest-risk vendor and route finance approval."
 
 
-def generate_procurement_recommendation(model: str, prompt: str) -> str:
+def should_use_openai() -> bool:
     use_openai = os.getenv("TRAJECTLY_DEMO_USE_OPENAI", "").lower() in {"1", "true", "yes"}
-    if use_openai and os.getenv("OPENAI_API_KEY"):
+    return use_openai and bool(os.getenv("OPENAI_API_KEY"))
 
-        def _call_openai(request_model: str, request_prompt: str) -> Any:
-            from openai import OpenAI
 
-            client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-            return client.chat.completions.create(
-                model=request_model,
-                messages=[{"role": "user", "content": request_prompt}],
-                temperature=0,
-            )
+def call_openai_chat(model: str, prompt: str) -> str:
+    from openai import OpenAI
 
-        raw = invoke_llm_call("openai", model, _call_openai, model, prompt)
-        return _extract_openai_content(raw)
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+    )
+    return extract_openai_content(response)
 
-    return invoke_llm_call("mock-openai", "mock-procurement-v1", _mock_policy_response, model, prompt)
+
+def generate_procurement_recommendation(model: str, prompt: str, *, use_openai: bool) -> str:
+    if use_openai:
+        return call_openai_chat(model, prompt)
+    return mock_policy_response(model, prompt)
 
 
 def choose_procurement_action(summary: str, default_vendor: str) -> dict[str, str]:
@@ -83,7 +83,6 @@ def choose_procurement_action(summary: str, default_vendor: str) -> dict[str, st
     return {"action": "route_approval", "vendor_id": vendor, "reason": summary}
 
 
-@tool("fetch_requisition")
 def fetch_requisition(request_id: str) -> dict[str, object]:
     return {
         "request_id": request_id,
@@ -95,7 +94,6 @@ def fetch_requisition(request_id: str) -> dict[str, object]:
     }
 
 
-@tool("fetch_vendor_quotes")
 def fetch_vendor_quotes(request_id: str) -> list[dict[str, object]]:
     _ = request_id
     return [
@@ -105,7 +103,6 @@ def fetch_vendor_quotes(request_id: str) -> list[dict[str, object]]:
     ]
 
 
-@tool("route_for_approval")
 def route_for_approval(request_id: str, vendor_id: str, reason: str) -> dict[str, str]:
     return {
         "status": "approved",
@@ -116,7 +113,6 @@ def route_for_approval(request_id: str, vendor_id: str, reason: str) -> dict[str
     }
 
 
-@tool("create_purchase_order")
 def create_purchase_order(request_id: str, vendor_id: str, approved_by: str) -> dict[str, str]:
     return {
         "status": "created",
@@ -127,7 +123,6 @@ def create_purchase_order(request_id: str, vendor_id: str, approved_by: str) -> 
     }
 
 
-@tool("unsafe_direct_award")
 def unsafe_direct_award(request_id: str, vendor_id: str, rationale: str) -> dict[str, str]:
     return {
         "status": "awarded_without_approval",
@@ -137,6 +132,5 @@ def unsafe_direct_award(request_id: str, vendor_id: str, rationale: str) -> dict
     }
 
 
-@tool("sample_random_score")
 def sample_random_score() -> float:
     return round(random.random(), 8)

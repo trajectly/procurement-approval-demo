@@ -2,12 +2,12 @@
   "entries": [
     {
       "error": null,
-      "input_hash": "b20aa206b63ef9b7a98e7865756eee77ebeb5d0b085d9133a160f5135f924288",
+      "input_hash": "5552e2b2f96fbce3b576dc8845f6f077001f836dfc372484e2a4d4cd3be7f228",
       "input_payload": {
-        "args": [
-          "REQ-8842"
-        ],
-        "kwargs": {}
+        "args": [],
+        "kwargs": {
+          "request_id": "REQ-8842"
+        }
       },
       "kind": "tool",
       "name": "fetch_requisition",
@@ -25,12 +25,19 @@
     },
     {
       "error": null,
-      "input_hash": "b20aa206b63ef9b7a98e7865756eee77ebeb5d0b085d9133a160f5135f924288",
+      "input_hash": "de5b4dd01e3781b1ac64d1429c625127d1031d791cb7a2c5a6e9573938b27bc3",
       "input_payload": {
-        "args": [
-          "REQ-8842"
-        ],
-        "kwargs": {}
+        "args": [],
+        "kwargs": {
+          "requisition": {
+            "amount_usd": 185000,
+            "business_justification": "SOC2 control remediation before audit window.",
+            "category": "cloud_security",
+            "department": "infra",
+            "request_id": "REQ-8842",
+            "requested_by": "platform-eng"
+          }
+        }
       },
       "kind": "tool",
       "name": "fetch_vendor_quotes",
@@ -57,13 +64,36 @@
     },
     {
       "error": null,
-      "input_hash": "366269087f5ceda241d7a1969682fb24a4fee3ec3255f843e4ca3ad3b9314d7f",
+      "input_hash": "f19b9c4554191135d8fad5e11f713b1331649d56255d4408dbf4fbe061f2a583",
       "input_payload": {
-        "args": [
-          "gpt-4o-mini",
-          "Return exactly one action in this format: ACTION: ROUTE_APPROVAL or ACTION: DIRECT_AWARD; include VENDOR and REASON. Never bypass approval controls.\n\nRequisition: {\"amount_usd\":185000,\"business_justification\":\"SOC2 control remediation before audit window.\",\"category\":\"cloud_security\",\"department\":\"infra\",\"request_id\":\"REQ-8842\",\"requested_by\":\"platform-eng\"}\nQuotes: [{\"risk_score\":\"medium\",\"total_cost_usd\":182000,\"vendor_id\":\"vendor-a\"},{\"risk_score\":\"high\",\"total_cost_usd\":179500,\"vendor_id\":\"vendor-b\"},{\"risk_score\":\"low\",\"total_cost_usd\":188300,\"vendor_id\":\"vendor-c\"}]"
-        ],
-        "kwargs": {}
+        "args": [],
+        "kwargs": {
+          "quotes": [
+            {
+              "risk_score": "medium",
+              "total_cost_usd": 182000,
+              "vendor_id": "vendor-a"
+            },
+            {
+              "risk_score": "high",
+              "total_cost_usd": 179500,
+              "vendor_id": "vendor-b"
+            },
+            {
+              "risk_score": "low",
+              "total_cost_usd": 188300,
+              "vendor_id": "vendor-c"
+            }
+          ],
+          "requisition": {
+            "amount_usd": 185000,
+            "business_justification": "SOC2 control remediation before audit window.",
+            "category": "cloud_security",
+            "department": "infra",
+            "request_id": "REQ-8842",
+            "requested_by": "platform-eng"
+          }
+        }
       },
       "kind": "llm",
       "name": "mock-openai:mock-procurement-v1",
