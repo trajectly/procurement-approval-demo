@@ -62,7 +62,7 @@ Observed output excerpt:
 Observed exit code:
 
 ```text
-13_run_regression=1
+step04_run_regression=1
 ```
 
 ## Step 3: Triage commands
@@ -73,8 +73,6 @@ Commands:
 python -m trajectly report
 python -m trajectly repro
 python -m trajectly shrink
-python -m trajectly report --json
-python -m trajectly report
 ```
 
 Observed output excerpts:
@@ -91,30 +89,42 @@ Repro command: python -m trajectly run "$PROJECT_ROOT/specs/trt-procurement-agen
 
 # shrink
 Shrink completed and report updated with shrink stats.
-
-# report --json excerpt
-"trt_failure_class": "REFINEMENT"
-"code": "REFINEMENT_BASELINE_CALL_MISSING"
-"expected": "fetch_requisition"
-"observed": ["unsafe_direct_award"]
-"trt_shrink_stats": { "original_len": 11, "reduced_len": 1 }
-
-# report (markdown)
-- `trt-procurement-agent`: regression
-  - trt: `FAIL` (witness=0)
 ```
 
 Observed exit behavior:
 
 ```text
-14_report_after_regression=0
-15_repro=1
-16_shrink=0
-17_report_after_shrink_json=0
-18_report_after_shrink_md=0
+step05_report=0
+step06_repro=1
+step07_shrink=0
 ```
 
-## Step 4: Determinism break and fix
+## Step 4: Inspect failure class and shrink stats
+
+Command:
+
+```bash
+python -m trajectly report --json
+```
+
+Observed output excerpt:
+
+```text
+"trt_failure_class": "REFINEMENT"
+"code": "REFINEMENT_BASELINE_CALL_MISSING"
+"expected": "fetch_requisition"
+"observed": ["unsafe_direct_award"]
+"trt_shrink_stats": { "original_len": 11, "reduced_len": 1 }
+"trt_status": "FAIL"
+```
+
+Observed exit code:
+
+```text
+step_report_json_after_shrink=0
+```
+
+## Step 5: Determinism break and fix
 
 Commands:
 
@@ -141,13 +151,43 @@ Observed output excerpts:
 Observed exit behavior:
 
 ```text
-20_record_det_break=0
-21_run_det_break=1
-22_record_det_fix=0
-23_run_det_fix=0
+step08_record_det_break=0
+step09_run_det_break=1
+step10_record_det_fix=0
+step11_run_det_fix=0
 ```
 
-## Step 5: PR drill (risky change)
+## Step 6: Verify script gate
+
+Command:
+
+```bash
+bash scripts/verify_demo.sh
+```
+
+Observed output excerpts:
+
+```text
+Initialized Trajectly workspace at $PROJECT_ROOT
+Recorded 1 spec(s) successfully
+- `trt-procurement-agent`: clean
+  - trt: `PASS`
+- `trt-procurement-agent`: regression
+  - trt: `FAIL` (witness=10)
+- `trt-procurement-agent-determinism-break`: regression
+  - trt: `FAIL` (witness=4)
+- `trt-procurement-agent-determinism-fix`: clean
+  - trt: `PASS`
+Procurement approval demo verification succeeded.
+```
+
+Observed exit code:
+
+```text
+step12_verify_script=0
+```
+
+## Step 7: PR drill (risky change)
 
 Create branch:
 
@@ -213,7 +253,7 @@ pr_run_baseline_after_risky=1
 pr_report_after_risky=0
 ```
 
-## Step 6: PR drill (fix commit)
+## Step 8: PR drill (fix commit)
 
 Restore safe behavior and commit fix:
 
@@ -251,7 +291,7 @@ pr_init_after_fix=0
 pr_run_baseline_after_fix=0
 ```
 
-## Step 7: Push branch and create PR
+## Step 9: Push branch and create PR
 
 Commands:
 
@@ -267,7 +307,7 @@ Branch '$VALIDATION_BRANCH' set up to track remote branch '$VALIDATION_BRANCH' f
 https://github.com/trajectly/procurement-approval-demo/pull/5
 ```
 
-## Step 8: Cleanup (temporary validation branch/PR)
+## Step 10: Cleanup (temporary validation branch/PR)
 
 Commands:
 
@@ -295,3 +335,9 @@ Deleted branch validation/docs-e2e-procurement-approval-demo-202603051852 (was 3
 6. Determinism fix: pass.
 7. PR drill risky commit: fail.
 8. PR drill fix commit: pass.
+
+## CI-equivalent mapping
+
+1. `scripts/verify_demo.sh` in CI matches local `Step 6`.
+2. `trajectly/trajectly-action@v1` in CI runs baseline replay and posts PR report comments.
+3. Workflow fails unless both `verify_demo` and action steps succeed.
