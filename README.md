@@ -6,7 +6,7 @@ You will:
 - run baseline graph behavior
 - run intentional policy regression
 - run determinism break/fix variants
-- inspect report/repro/shrink and dashboard output
+- inspect report/repro/shrink and CI artifacts
 
 ## Dependency note
 
@@ -62,6 +62,19 @@ python -m trajectly run specs/trt-procurement-agent-regression.agent.yaml --proj
 
 Expected: `FAIL` (exit code `1`).
 
+## Triage commands
+
+```bash
+python -m trajectly report
+python -m trajectly repro
+python -m trajectly shrink
+```
+
+Expected exits after the intentional regression run above:
+- `report` -> `0`
+- `repro` -> `1`
+- `shrink` -> `0`
+
 ## Determinism scenarios
 
 Break (expected fail):
@@ -77,27 +90,6 @@ Fix (expected pass):
 python -m trajectly record specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
 python -m trajectly run specs/trt-procurement-agent-determinism-fix.agent.yaml --project-root .
 ```
-
-## Triage commands
-
-```bash
-python -m trajectly report
-python -m trajectly repro
-python -m trajectly shrink
-```
-
-## Optional dashboard
-
-```bash
-cd ..
-git clone https://github.com/trajectly/trajectly-dashboard-local.git
-cd trajectly-dashboard-local
-npm install
-printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)/../procurement-approval-demo" > .env.local
-npm run dev
-```
-
-Open: <http://localhost:5173/dashboard>
 
 ## CI workflow
 
