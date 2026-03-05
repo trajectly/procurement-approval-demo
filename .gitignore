@@ -1,4 +1,5 @@
 .venv/
+.venv.*/
 __pycache__/
 *.py[cod]
 .DS_Store
@@ -7,9 +8,7 @@ trajectly_pr_comment.md
 # Keep deterministic Trajectly artifacts required for CI replay
 .trajectly/*
 !.trajectly/config.yaml
-!.trajectly/current/
-!.trajectly/current/*.json
-.trajectly/current/*.jsonl
 !.trajectly/baselines/
+.trajectly/baselines/*
 !.trajectly/baselines/trt-procurement-agent/
 !.trajectly/baselines/trt-procurement-agent/**
