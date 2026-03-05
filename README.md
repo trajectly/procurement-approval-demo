@@ -2,6 +2,12 @@
 
 This demo shows a procurement workflow built with `trajectly.App` and validated with deterministic replay.
 
+## What the agent does and why Trajectly is used
+
+1. The agent processes one procurement request by fetching requisition data and vendor quotes, then selecting an execution path.
+2. The safe path routes for approval and creates a purchase order; the regression variant intentionally takes an unsafe direct-award path.
+3. Trajectly is used to record baseline behavior and replay it as a deterministic gate so behavior changes are caught with a reproducible witness.
+
 ## What this demonstrates
 
 1. Baseline behavior passes.

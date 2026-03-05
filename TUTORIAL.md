@@ -2,6 +2,12 @@
 
 This walkthrough uses real validated outputs from March 5, 2026.
 
+## What the agent does and why Trajectly is used
+
+1. The procurement agent fetches requisition and quote data, then executes either an approval flow or a direct-award flow.
+2. The baseline path is approval-first; the regression path is intentionally unsafe so the guard can fail.
+3. The goal with Trajectly is to turn that behavior into a replayable contract, then use `run`, `report`, `repro`, and `shrink` for fast triage.
+
 Path placeholders:
 
 1. `$PROJECT_ROOT` = local repo path
