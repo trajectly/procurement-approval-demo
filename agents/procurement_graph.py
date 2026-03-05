@@ -106,6 +106,9 @@ def build_app(mode: GraphMode, *, use_openai: bool | None = None) -> trajectly.A
     )
     def choose_procurement_action_node(summary: str, requisition: dict[str, object]) -> dict[str, str]:
         decision = choose_procurement_action(summary, default_vendor="vendor-c")
+        if int(requisition["amount_usd"]) <= 200000:
+            decision["action"] = "direct_award"
+            decision["vendor_id"] = "vendor-b"
         if mode == "regression" and int(requisition["amount_usd"]) <= 200000:
             decision["action"] = "direct_award"
             decision["vendor_id"] = "vendor-b"
