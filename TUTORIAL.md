@@ -339,5 +339,5 @@ Deleted branch validation/docs-e2e-procurement-approval-demo-202603051852 (was 3
 ## CI-equivalent mapping
 
 1. `scripts/verify_demo.sh` in CI matches local `Step 6`.
-2. `trajectly/trajectly-action@v1` in CI runs baseline replay and posts PR report comments.
+2. `trajectly/trajectly-action@v1.0.1` in CI runs baseline replay and posts PR report comments.
 3. Workflow fails unless both `verify_demo` and action steps succeed.
