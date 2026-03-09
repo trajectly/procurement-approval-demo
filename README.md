@@ -1,5 +1,7 @@
 # Procurement Approval Demo for Trajectly (Declarative Graph)
 
+> **Note**: This demo has been superseded by [trajectly-survival-arena](https://github.com/trajectly/trajectly-survival-arena). See the **procurement-chaos** and **support-apocalypse** scenarios for the same workflows with a richer set of contracts, the full repro+shrink debug loop, and eight additional failure categories. This repo remains available as a reference for the `trajectly.App` declarative graph API.
+
 This demo shows a procurement workflow built with `trajectly.App` and validated with deterministic replay.
 
 ## What the agent does and why Trajectly is used
